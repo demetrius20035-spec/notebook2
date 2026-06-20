@@ -34,6 +34,10 @@ requests>=2.32.3,<3             # used by Sber GigaChat example
 
 # Vector store / RAG
 qdrant-client>=1.12,<2
+# NumPy: на Python < 3.13 закрепляем ветку 1.26 (baseline SSE2) — wheels
+# NumPy 2.x собраны с baseline x86-64-v2 и не запускаются на старых CPU/в VM
+# без проброса флагов. На 3.13 ветка 1.26 недоступна — там ставится 2.x.
+numpy<2,>=1.26; python_version < "3.13"
 
 # OCR / PDF ingest
 pdfminer.six>=20231228

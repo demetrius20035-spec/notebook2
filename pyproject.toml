@@ -25,6 +25,9 @@ dependencies = [
     "openai>=1.35,<2",
     "requests>=2.32.3,<3",
     "qdrant-client>=1.12,<2",
+    # NumPy 2.x собран с baseline x86-64-v2 (не идёт на старых CPU/в VM без
+    # проброса флагов); на Python < 3.13 закрепляем совместимую ветку 1.26.
+    "numpy<2,>=1.26; python_version < '3.13'",
     "pdfminer.six>=20231228",
     "pytesseract>=0.3.10",
     "Pillow>=11.0.0",
