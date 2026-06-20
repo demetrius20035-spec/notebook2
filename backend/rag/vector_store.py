@@ -3,13 +3,15 @@
 Четыре коллекции (ТЗ §2.5):
     repair_vectors, datasheet_vectors, forum_vectors, knowledge_vectors.
 В Qdrant хранятся только вектора и payload с object_id; тексты — в MariaDB.
+
+Импорт ``qdrant_client`` (и транзитивно ``numpy``) выполняется лениво —
+внутри методов, а не на уровне модуля. Это позволяет запускать ядро
+системы (CRM, тикеты, документы, LLM-диагностика) даже без установленного
+или несовместимого Qdrant/NumPy; падает только сам RAG при обращении.
 """
 from __future__ import annotations
 
 from dataclasses import dataclass
-
-from qdrant_client import QdrantClient
-from qdrant_client.http import models as qmodels
 
 from backend.core.config import settings
 
@@ -34,6 +36,8 @@ class VectorStore:
     def __init__(
         self, host: str | None = None, port: int | None = None, mode: str | None = None
     ) -> None:
+        from qdrant_client import QdrantClient  # ленивый импорт (тянет numpy)
+
         mode = (mode or settings.qdrant_mode).lower()
         if mode == "memory":
             # Встроенный режим в ОЗУ — без сервера, без персистентности.
@@ -52,6 +56,8 @@ class VectorStore:
 
     def ensure_collections(self) -> None:
         """Создаёт все коллекции с косинусной метрикой, если их нет."""
+        from qdrant_client.http import models as qmodels
+
         existing = {c.name for c in self.client.get_collections().collections}
         for name in COLLECTIONS:
             if name not in existing:
@@ -65,6 +71,8 @@ class VectorStore:
     def upsert(
         self, collection: str, point_id: int, vector: list[float], payload: dict
     ) -> None:
+        from qdrant_client.http import models as qmodels
+
         self.client.upsert(
             collection_name=collection,
             points=[qmodels.PointStruct(id=point_id, vector=vector, payload=payload)],
@@ -76,7 +84,7 @@ class VectorStore:
         vector: list[float],
         top_k: int = 5,
         min_score: float = DEFAULT_MIN_SCORE,
-        query_filter: qmodels.Filter | None = None,
+        query_filter=None,
     ) -> list[SearchHit]:
         # query_points — актуальный API (search() удалён в свежих версиях
         # qdrant-client); для совместимости откатываемся на search().
