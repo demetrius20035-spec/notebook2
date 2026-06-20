@@ -19,8 +19,9 @@ from backend.schemas.entities import (
     TicketOut,
     TicketStatusUpdate,
 )
-from backend.services import ticket_service
+from backend.services import document_service, ticket_service
 from backend.services.ticket_service import TicketError
+from backend.schemas.more import DocumentGenerateRequest
 
 router = APIRouter(prefix="/api/v1/tickets", tags=["tickets"])
 
@@ -198,3 +199,41 @@ def list_history(
             for r in rows
         ]
     )
+
+
+@router.get("/{ticket_id}/documents")
+def list_documents(
+    ticket_id: int, db: Session = Depends(get_db), _: User = Depends(get_current_user)
+):
+    from backend.models.knowledge import Document
+
+    rows = db.scalars(select(Document).where(Document.ticket_id == ticket_id)).all()
+    return ok(
+        [
+            {
+                "id": d.id,
+                "document_type": d.document_type,
+                "file_path": d.file_path,
+                "created_at": d.created_at.isoformat() if d.created_at else None,
+            }
+            for d in rows
+        ]
+    )
+
+
+@router.post("/{ticket_id}/documents")
+def generate_document(
+    ticket_id: int,
+    body: DocumentGenerateRequest,
+    db: Session = Depends(get_db),
+    user: User = Depends(require_roles(UserRole.ADMIN, UserRole.MASTER, UserRole.RECEIVER)),
+):
+    """F-007: сгенерировать PDF-документ по тикету."""
+    ticket = db.get(RepairTicket, ticket_id)
+    if ticket is None:
+        raise HTTPException(status_code=404, detail="Тикет не найден")
+    try:
+        doc = document_service.generate_document(db, ticket, body.document_type, user.id)
+    except Exception as exc:  # noqa: BLE001  (WeasyPrint/шаблоны)
+        raise HTTPException(status_code=500, detail=f"Ошибка генерации: {exc}") from exc
+    return ok({"id": doc.id, "document_type": doc.document_type, "file_path": doc.file_path})

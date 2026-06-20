@@ -3,7 +3,6 @@ from __future__ import annotations
 
 from PySide6.QtWidgets import (
     QHBoxLayout,
-    QLabel,
     QListWidget,
     QListWidgetItem,
     QMainWindow,
@@ -12,30 +11,14 @@ from PySide6.QtWidgets import (
 )
 
 from gui.api_client import APIClient
-from gui.views.ai_view import AIAssistantView
+from gui.views.analytics_view import AnalyticsView
+from gui.views.clients_view import ClientsView
+from gui.views.components_view import ComponentsView
+from gui.views.finance_view import FinanceView
+from gui.views.inventory_view import InventoryView
+from gui.views.knowledge_view import KnowledgeView
+from gui.views.settings_view import SettingsView
 from gui.views.tickets_view import TicketsView
-
-# Пункты навигации (§6.1).
-_NAV = [
-    ("📋 Тикеты", "tickets"),
-    ("👥 Клиенты", "clients"),
-    ("🔧 Компоненты", "components"),
-    ("📚 База знаний", "knowledge"),
-    ("🏪 Склад", "inventory"),
-    ("💰 Финансы", "finance"),
-    ("📊 Аналитика", "analytics"),
-    ("🤖 AI Ассистент", "ai"),
-    ("⚙️ Настройки", "settings"),
-]
-
-
-class _PlaceholderView(QWidget):
-    """Заглушка для ещё не реализованных экранов."""
-
-    def __init__(self, title: str) -> None:
-        super().__init__()
-        layout = QHBoxLayout(self)
-        layout.addWidget(QLabel(f"<h2>{title}</h2><p>Раздел в разработке.</p>"))
 
 
 class MainWindow(QMainWindow):
@@ -44,27 +27,34 @@ class MainWindow(QMainWindow):
     def __init__(self, client: APIClient) -> None:
         super().__init__()
         self.client = client
-        self.setWindowTitle("RepairExpert AI")
-        self.resize(1200, 760)
+        user = client.current_user or {}
+        self.setWindowTitle(
+            f"RepairExpert AI — {user.get('full_name','')} ({user.get('role','')})"
+        )
+        self.resize(1240, 780)
 
         self.nav = QListWidget()
-        self.nav.setMaximumWidth(220)
+        self.nav.setMaximumWidth(230)
         self.stack = QStackedWidget()
 
-        self.tickets_view = TicketsView(client)
-        self.ai_view = AIAssistantView(client)
+        # (метка, фабрика виджета). Виджеты создаются лениво при первом показе.
+        self._specs = [
+            ("📋 Тикеты", lambda: TicketsView(client)),
+            ("👥 Клиенты", lambda: ClientsView(client)),
+            ("🔧 Компоненты", lambda: ComponentsView(client)),
+            ("📚 База знаний", lambda: KnowledgeView(client)),
+            ("🏪 Склад", lambda: InventoryView(client)),
+            ("💰 Финансы", lambda: FinanceView(client)),
+            ("📊 Аналитика", lambda: AnalyticsView(client)),
+            ("⚙️ Настройки", lambda: SettingsView(client)),
+        ]
+        self._widgets: list[QWidget | None] = [None] * len(self._specs)
 
-        for label, key in _NAV:
+        for label, _ in self._specs:
             QListWidgetItem(label, self.nav)
-            if key == "tickets":
-                self.stack.addWidget(self.tickets_view)
-            elif key == "ai":
-                self.stack.addWidget(self.ai_view)
-            else:
-                self.stack.addWidget(_PlaceholderView(label))
+            self.stack.addWidget(QWidget())  # плейсхолдер до ленивой загрузки
 
-        self.nav.currentRowChanged.connect(self.stack.setCurrentIndex)
-        self.nav.setCurrentRow(0)
+        self.nav.currentRowChanged.connect(self._switch)
 
         central = QWidget()
         layout = QHBoxLayout(central)
@@ -73,4 +63,20 @@ class MainWindow(QMainWindow):
         self.setCentralWidget(central)
 
         self.statusBar().showMessage("Готово")
-        self.tickets_view.reload()
+        self.nav.setCurrentRow(0)
+
+    def _switch(self, index: int) -> None:
+        if index < 0:
+            return
+        if self._widgets[index] is None:
+            widget = self._specs[index][1]()
+            self._widgets[index] = widget
+            old = self.stack.widget(index)
+            self.stack.insertWidget(index, widget)
+            self.stack.removeWidget(old)
+            old.deleteLater()
+        widget = self._widgets[index]
+        self.stack.setCurrentIndex(index)
+        # Обновляем данные при каждом показе, если у виджета есть reload().
+        if hasattr(widget, "reload"):
+            widget.reload()

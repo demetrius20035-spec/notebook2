@@ -18,13 +18,16 @@ from backend.models.base import Base, TimestampMixin
 from backend.models.enums import KnowledgeSourceType
 from backend.models.mixins import CreatedAtMixin
 
+# MEDIUMTEXT на MySQL/MariaDB, обычный TEXT на прочих СУБД (портируемость/тесты).
+_LongText = Text().with_variant(MEDIUMTEXT, "mysql", "mariadb")
+
 
 class KnowledgeBase(Base, TimestampMixin):
     __tablename__ = "knowledge_base"
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     title: Mapped[str] = mapped_column(String(255), nullable=False)
-    content: Mapped[str | None] = mapped_column(MEDIUMTEXT)
+    content: Mapped[str | None] = mapped_column(_LongText)
     source_type: Mapped[KnowledgeSourceType] = mapped_column(
         Enum(KnowledgeSourceType), nullable=False
     )

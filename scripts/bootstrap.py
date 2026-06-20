@@ -76,6 +76,32 @@ def create_admin(username: str, password: str, full_name: str) -> None:
         print(f"  ✔ создан администратор '{username}'")
 
 
+# Типы устройств из ТЗ §2.2 и распространённые производители.
+_DEVICE_TYPES = [
+    "Ноутбук", "Смартфон", "Планшет", "Материнская плата",
+    "Блок питания", "Монитор", "Другое",
+]
+_MANUFACTURERS = [
+    "Lenovo", "ASUS", "Acer", "HP", "Dell", "Apple", "Samsung",
+    "MSI", "Xiaomi", "Huawei",
+]
+
+
+def seed_reference_data() -> None:
+    """Заполняет справочники типов устройств и производителей."""
+    from backend.models.catalog import DeviceType, Manufacturer
+
+    with SessionLocal() as db:
+        for name in _DEVICE_TYPES:
+            if not db.query(DeviceType).filter(DeviceType.name == name).first():
+                db.add(DeviceType(name=name))
+        for name in _MANUFACTURERS:
+            if not db.query(Manufacturer).filter(Manufacturer.name == name).first():
+                db.add(Manufacturer(name=name))
+        db.commit()
+    print("  ✔ справочники заполнены (типы устройств, производители)")
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Bootstrap RepairExpert AI")
     parser.add_argument("--admin-username", default="admin")
@@ -85,6 +111,7 @@ def main() -> int:
     args = parser.parse_args()
 
     create_schema()
+    seed_reference_data()
     if not args.skip_qdrant:
         create_qdrant_collections()
     create_admin(args.admin_username, args.admin_password, args.admin_name)

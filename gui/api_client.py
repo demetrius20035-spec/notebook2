@@ -23,6 +23,7 @@ class APIClient:
         self.base_url = base_url.rstrip("/")
         self._token: str | None = None
         self._session = requests.Session()
+        self.current_user: dict | None = None
 
     # ── аутентификация ──
     def login(self, username: str, password: str, remember: bool = False) -> None:
@@ -32,6 +33,7 @@ class APIClient:
             auth=False,
         )
         self._token = data["access_token"]
+        self.current_user = self._get("/api/v1/users/me")
 
     @property
     def authenticated(self) -> bool:
@@ -39,26 +41,127 @@ class APIClient:
 
     def logout(self) -> None:
         self._token = None
+        self.current_user = None
 
-    # ── запросы домена ──
+    @property
+    def role(self) -> str:
+        return (self.current_user or {}).get("role", "")
+
+    # ── пользователи ──
+    def list_users(self) -> list[dict]:
+        return self._get("/api/v1/users")
+
+    # ── клиенты ──
+    def list_clients(self, q: str | None = None) -> list[dict]:
+        return self._get("/api/v1/clients", params={"q": q} if q else None)
+
+    def create_client(self, payload: dict) -> dict:
+        return self._post("/api/v1/clients", json=payload)
+
+    def client_tickets(self, client_id: int) -> list[dict]:
+        return self._get(f"/api/v1/clients/{client_id}/tickets")
+
+    # ── справочники / устройства ──
+    def list_device_types(self) -> list[dict]:
+        return self._get("/api/v1/device-types")
+
+    def list_manufacturers(self) -> list[dict]:
+        return self._get("/api/v1/manufacturers")
+
+    def create_device(self, payload: dict) -> dict:
+        return self._post("/api/v1/devices", json=payload)
+
+    # ── тикеты ──
     def list_tickets(self, status: str | None = None) -> list[dict]:
-        params = {"status": status} if status else None
-        return self._get("/api/v1/tickets", params=params)
+        return self._get("/api/v1/tickets", params={"status": status} if status else None)
 
     def get_ticket(self, ticket_id: int) -> dict:
         return self._get(f"/api/v1/tickets/{ticket_id}")
 
+    def create_ticket(self, payload: dict) -> dict:
+        return self._post("/api/v1/tickets", json=payload)
+
+    def change_status(self, ticket_id: int, status: str) -> dict:
+        return self._post(f"/api/v1/tickets/{ticket_id}/status", json={"status": status})
+
     def ticket_history(self, ticket_id: int) -> list[dict]:
         return self._get(f"/api/v1/tickets/{ticket_id}/history")
+
+    def add_history(self, ticket_id: int, payload: dict) -> dict:
+        return self._post(f"/api/v1/tickets/{ticket_id}/history", json=payload)
+
+    def list_measurements(self, ticket_id: int) -> list[dict]:
+        return self._get(f"/api/v1/tickets/{ticket_id}/measurements")
 
     def add_measurement(self, ticket_id: int, payload: dict) -> dict:
         return self._post(f"/api/v1/tickets/{ticket_id}/measurements", json=payload)
 
+    def list_documents(self, ticket_id: int) -> list[dict]:
+        return self._get(f"/api/v1/tickets/{ticket_id}/documents")
+
+    def generate_document(self, ticket_id: int, document_type: str) -> dict:
+        return self._post(
+            f"/api/v1/tickets/{ticket_id}/documents", json={"document_type": document_type}
+        )
+
+    # ── компоненты ──
+    def list_components(self, q: str | None = None) -> list[dict]:
+        return self._get("/api/v1/components", params={"q": q} if q else None)
+
+    def create_component(self, payload: dict) -> dict:
+        return self._post("/api/v1/components", json=payload)
+
+    def component_analogs(self, component_id: int) -> list[dict]:
+        return self._get(f"/api/v1/components/{component_id}/analogs")
+
+    # ── склад ──
+    def list_inventory(self) -> list[dict]:
+        return self._get("/api/v1/inventory")
+
+    def upsert_inventory(self, payload: dict) -> dict:
+        return self._post("/api/v1/inventory", json=payload)
+
+    def inventory_move(self, payload: dict) -> dict:
+        return self._post("/api/v1/inventory/moves", json=payload)
+
+    def list_suppliers(self) -> list[dict]:
+        return self._get("/api/v1/suppliers")
+
+    # ── база знаний ──
+    def list_knowledge(self, q: str | None = None) -> list[dict]:
+        return self._get("/api/v1/knowledge", params={"q": q} if q else None)
+
+    def create_knowledge(self, payload: dict) -> dict:
+        return self._post("/api/v1/knowledge", json=payload)
+
+    def get_knowledge(self, article_id: int) -> dict:
+        return self._get(f"/api/v1/knowledge/{article_id}")
+
+    # ── финансы ──
+    def list_payments(self, ticket_id: int | None = None) -> list[dict]:
+        return self._get(
+            "/api/v1/finance/payments", params={"ticket_id": ticket_id} if ticket_id else None
+        )
+
+    def add_payment(self, payload: dict) -> dict:
+        return self._post("/api/v1/finance/payments", json=payload)
+
+    def revenue_report(self, days: int = 30) -> dict:
+        return self._get("/api/v1/finance/report", params={"days": days})
+
+    # ── аналитика ──
+    def dashboard(self) -> dict:
+        return self._get("/api/v1/analytics/dashboard")
+
+    # ── AI ──
     def list_providers(self) -> dict:
         return self._get("/api/v1/ai/providers")
 
     def diagnose(self, payload: dict) -> dict:
         return self._post("/api/v1/ai/diagnose", json=payload)
+
+    def ai_health(self, provider: str | None = None) -> dict:
+        return self._get("/api/v1/ai/health", params={"provider": provider} if provider else None)
 
     # ── низкоуровневые helpers ──
     def _headers(self, auth: bool) -> dict[str, str]:
@@ -78,7 +181,7 @@ class APIClient:
         try:
             resp = self._session.request(
                 method, url, json=json, params=params,
-                headers=self._headers(auth), timeout=60,
+                headers=self._headers(auth), timeout=120,
             )
         except requests.RequestException as exc:
             raise APIError(f"Сеть недоступна: {exc}") from exc
