@@ -26,8 +26,13 @@ class Settings(BaseSettings):
     db_password: str = ""
 
     # ── Qdrant ──
+    # qdrant_mode: "server" — внешний сервер по host:port;
+    #              "local"  — встроенный режим (хранение в папке, без сервера и Docker);
+    #              "memory" — встроенный режим в ОЗУ (для тестов, без персистентности).
+    qdrant_mode: str = "server"
     qdrant_host: str = "127.0.0.1"
     qdrant_port: int = 6333
+    qdrant_local_path: str = "./qdrant_storage"
 
     # ── Хранилище ──
     storage_backend: str = "local"

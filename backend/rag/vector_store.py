@@ -31,11 +31,23 @@ class SearchHit:
 class VectorStore:
     """Тонкая обёртка над qdrant-client с фабрикой коллекций."""
 
-    def __init__(self, host: str | None = None, port: int | None = None) -> None:
-        self.client = QdrantClient(
-            host=host or settings.qdrant_host,
-            port=port or settings.qdrant_port,
-        )
+    def __init__(
+        self, host: str | None = None, port: int | None = None, mode: str | None = None
+    ) -> None:
+        mode = (mode or settings.qdrant_mode).lower()
+        if mode == "memory":
+            # Встроенный режим в ОЗУ — без сервера, без персистентности.
+            self.client = QdrantClient(location=":memory:")
+        elif mode == "local":
+            # Встроенный режим: вектора хранятся в локальной папке.
+            # Не требует ни сервера Qdrant, ни Docker — удобно для Windows.
+            self.client = QdrantClient(path=settings.qdrant_local_path)
+        else:
+            # Внешний сервер Qdrant по host:port.
+            self.client = QdrantClient(
+                host=host or settings.qdrant_host,
+                port=port or settings.qdrant_port,
+            )
         self.dim = settings.embedding_dim
 
     def ensure_collections(self) -> None:
@@ -66,16 +78,28 @@ class VectorStore:
         min_score: float = DEFAULT_MIN_SCORE,
         query_filter: qmodels.Filter | None = None,
     ) -> list[SearchHit]:
-        results = self.client.search(
-            collection_name=collection,
-            query_vector=vector,
-            limit=top_k,
-            score_threshold=min_score,
-            query_filter=query_filter,
-        )
+        # query_points — актуальный API (search() удалён в свежих версиях
+        # qdrant-client); для совместимости откатываемся на search().
+        if hasattr(self.client, "query_points"):
+            results = self.client.query_points(
+                collection_name=collection,
+                query=vector,
+                limit=top_k,
+                score_threshold=min_score,
+                query_filter=query_filter,
+                with_payload=True,
+            ).points
+        else:  # pragma: no cover — старые версии клиента
+            results = self.client.search(
+                collection_name=collection,
+                query_vector=vector,
+                limit=top_k,
+                score_threshold=min_score,
+                query_filter=query_filter,
+            )
         return [
             SearchHit(
-                object_id=int(r.payload.get("object_id", r.id)),
+                object_id=int((r.payload or {}).get("object_id", r.id)),
                 score=r.score,
                 payload=r.payload or {},
             )

@@ -107,6 +107,21 @@ docker compose up -d mariadb qdrant
 # docker compose --profile minio up -d
 ```
 
+**Без Docker** (например, на Windows):
+
+- **MariaDB** — установите нативно, затем создайте БД и пользователя:
+  ```sql
+  CREATE DATABASE IF NOT EXISTS repair_expert
+    CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+  CREATE USER IF NOT EXISTS 'repairapp'@'localhost' IDENTIFIED BY '<DB_PASSWORD>';
+  GRANT ALL PRIVILEGES ON repair_expert.* TO 'repairapp'@'localhost';
+  FLUSH PRIVILEGES;
+  ```
+- **Qdrant** ставить **не нужно**: задайте в `.env` `QDRANT_MODE=local` —
+  `qdrant-client` будет хранить вектора в локальной папке (`QDRANT_LOCAL_PATH`)
+  во встроенном режиме, без сервера. Либо `QDRANT_MODE=server` для внешнего
+  Qdrant. RAG также можно временно отключить (`--skip-qdrant` при bootstrap).
+
 Сгенерировать секреты:
 
 ```bash
