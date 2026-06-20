@@ -11,6 +11,8 @@ from __future__ import annotations
 import argparse
 import sys
 
+from sqlalchemy.exc import OperationalError
+
 from backend.core.config import settings
 from backend.core.database import SessionLocal, engine
 from backend.core.security import hash_password
@@ -18,9 +20,32 @@ from backend.models import Base, User
 from backend.models.enums import UserRole
 
 
+def _db_setup_hint() -> str:
+    """Подсказка по настройке БД для типичных ошибок доступа."""
+    return (
+        "\nНе удалось подключиться к базе данных "
+        f"'{settings.db_name}' под пользователем "
+        f"'{settings.db_user}'@{settings.db_host}.\n"
+        "Проверьте, что СУБД запущена, база существует и у пользователя\n"
+        "есть права. Создать вручную (выполнить от root):\n\n"
+        f"  CREATE DATABASE IF NOT EXISTS {settings.db_name}\n"
+        "    CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;\n"
+        f"  CREATE USER IF NOT EXISTS '{settings.db_user}'@'localhost'\n"
+        "    IDENTIFIED BY '<пароль из .env DB_PASSWORD>';\n"
+        f"  GRANT ALL PRIVILEGES ON {settings.db_name}.* "
+        f"TO '{settings.db_user}'@'localhost';\n"
+        "  FLUSH PRIVILEGES;\n\n"
+        "Либо поднимите готовый стек:  docker compose up -d mariadb qdrant\n"
+    )
+
+
 def create_schema() -> None:
     print(f"→ Создание схемы в {settings.db_name} …")
-    Base.metadata.create_all(bind=engine)
+    try:
+        Base.metadata.create_all(bind=engine)
+    except OperationalError as exc:
+        print(_db_setup_hint(), file=sys.stderr)
+        raise SystemExit(f"Ошибка БД: {exc.orig}") from exc
     print("  ✔ таблицы созданы")
 
 
