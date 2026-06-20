@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <style>
+    @page { size: A4; margin: 1.6cm; }
+    body { font-family: "DejaVu Sans", sans-serif; font-size: 11pt; color: #1a1a1a; }
+    header { display: flex; justify-content: space-between; align-items: flex-start;
+             border-bottom: 2px solid #333; padding-bottom: 8px; margin-bottom: 16px; }
+    .org { font-size: 10pt; line-height: 1.4; }
+    .org .name { font-size: 13pt; font-weight: bold; }
+    .qr img { width: 96px; height: 96px; }
+    h1 { font-size: 16pt; margin: 8px 0 16px; }
+    table { width: 100%; border-collapse: collapse; margin: 12px 0; }
+    th, td { border: 1px solid #999; padding: 6px 8px; text-align: left; font-size: 10pt; }
+    th { background: #f0f0f0; }
+    .row { margin: 4px 0; }
+    .label { display: inline-block; min-width: 200px; color: #555; }
+    .signatures { display: flex; justify-content: space-between; margin-top: 48px; }
+    .sign { width: 45%; border-top: 1px solid #333; padding-top: 4px; font-size: 10pt; }
+    footer { margin-top: 24px; font-size: 8pt; color: #888; }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="org">
+      <div class="name">{{ org_name }}</div>
+      {% if org_inn %}<div>ИНН: {{ org_inn }}</div>{% endif %}
+      {% if org_address %}<div>{{ org_address }}</div>{% endif %}
+      {% if org_phone %}<div>тел.: {{ org_phone }}</div>{% endif %}
+      {% if org_email %}<div>{{ org_email }}</div>{% endif %}
+    </div>
+    <div class="qr">
+      {% if qr_code %}<img src="{{ qr_code }}" alt="QR">{% endif %}
+    </div>
+  </header>
+
+  {% block content %}{% endblock %}
+
+  <footer>
+    Документ сформирован системой RepairExpert AI · тикет {{ ticket_number }}
+  </footer>
+</body>
+</html>

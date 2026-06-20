@@ -1,0 +1,83 @@
+"""Обёртка над Qdrant: коллекции и поиск (§7.2, §8.3).
+
+Четыре коллекции (ТЗ §2.5):
+    repair_vectors, datasheet_vectors, forum_vectors, knowledge_vectors.
+В Qdrant хранятся только вектора и payload с object_id; тексты — в MariaDB.
+"""
+from __future__ import annotations
+
+from dataclasses import dataclass
+
+from qdrant_client import QdrantClient
+from qdrant_client.http import models as qmodels
+
+from backend.core.config import settings
+
+COLLECTIONS = ("repair_vectors", "datasheet_vectors", "forum_vectors", "knowledge_vectors")
+
+# §8.3 — параметры RAG-поиска.
+DEFAULT_MIN_SCORE = 0.72
+TOP_K_REPAIRS = 5
+TOP_K_DATASHEETS = 3
+
+
+@dataclass
+class SearchHit:
+    object_id: int
+    score: float
+    payload: dict
+
+
+class VectorStore:
+    """Тонкая обёртка над qdrant-client с фабрикой коллекций."""
+
+    def __init__(self, host: str | None = None, port: int | None = None) -> None:
+        self.client = QdrantClient(
+            host=host or settings.qdrant_host,
+            port=port or settings.qdrant_port,
+        )
+        self.dim = settings.embedding_dim
+
+    def ensure_collections(self) -> None:
+        """Создаёт все коллекции с косинусной метрикой, если их нет."""
+        existing = {c.name for c in self.client.get_collections().collections}
+        for name in COLLECTIONS:
+            if name not in existing:
+                self.client.create_collection(
+                    collection_name=name,
+                    vectors_config=qmodels.VectorParams(
+                        size=self.dim, distance=qmodels.Distance.COSINE
+                    ),
+                )
+
+    def upsert(
+        self, collection: str, point_id: int, vector: list[float], payload: dict
+    ) -> None:
+        self.client.upsert(
+            collection_name=collection,
+            points=[qmodels.PointStruct(id=point_id, vector=vector, payload=payload)],
+        )
+
+    def search(
+        self,
+        collection: str,
+        vector: list[float],
+        top_k: int = 5,
+        min_score: float = DEFAULT_MIN_SCORE,
+        query_filter: qmodels.Filter | None = None,
+    ) -> list[SearchHit]:
+        results = self.client.search(
+            collection_name=collection,
+            query_vector=vector,
+            limit=top_k,
+            score_threshold=min_score,
+            query_filter=query_filter,
+        )
+        return [
+            SearchHit(
+                object_id=int(r.payload.get("object_id", r.id)),
+                score=r.score,
+                payload=r.payload or {},
+            )
+            for r in results
+        ]

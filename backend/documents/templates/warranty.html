@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Гарантийный талон № {{ ticket_number }}</h1>
+<div class="row"><span class="label">Клиент:</span>{{ client_name }}</div>
+<div class="row"><span class="label">Устройство:</span>
+  {{ device_manufacturer }} {{ device_model }}</div>
+
+<h3>Выполненные работы</h3>
+<p>{{ repair_description or '—' }}</p>
+
+<div class="row"><span class="label">Дата выдачи:</span>{{ delivered_at }}</div>
+<div class="row"><span class="label">Срок гарантии:</span>{{ warranty_months }} мес.</div>
+<div class="row"><span class="label">Действует до:</span>{{ warranty_expires_at }}</div>
+
+<h3>Условия гарантии</h3>
+<p>Гарантия распространяется на выполненные работы и заменённые компоненты.
+Гарантия не покрывает: механические повреждения, попадание жидкости,
+последствия неквалифицированного вмешательства, нарушение пломб.</p>
+
+<div class="signatures">
+  <div class="sign">Мастер: {{ master_name }}</div>
+  <div class="sign">Печать организации</div>
+</div>
+{% endblock %}

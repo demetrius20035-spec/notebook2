@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Дефектовочная ведомость № {{ ticket_number }}</h1>
+<div class="row"><span class="label">Клиент:</span>{{ client_name }}</div>
+<div class="row"><span class="label">Устройство:</span>
+  {{ device_manufacturer }} {{ device_model }}</div>
+
+<h3>Выявленные неисправности</h3>
+<p>{{ diagnostic_result or '—' }}</p>
+
+<h3>Необходимые работы и компоненты</h3>
+<table>
+  <thead><tr><th>Наименование</th><th>Кол-во</th><th>Стоимость</th></tr></thead>
+  <tbody>
+  {% for item in defect_items %}
+    <tr><td>{{ item.name }}</td><td>{{ item.quantity }}</td><td>{{ item.cost }}</td></tr>
+  {% else %}
+    <tr><td colspan="3">—</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+
+<div class="row"><span class="label">Предварительная стоимость:</span>{{ cost_estimate }}</div>
+
+<div class="signatures">
+  <div class="sign">Согласовано (клиент): _______________</div>
+  <div class="sign">Отказ от ремонта: _______________</div>
+</div>
+{% endblock %}
