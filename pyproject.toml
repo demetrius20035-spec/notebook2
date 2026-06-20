@@ -1,0 +1,66 @@
+[project]
+name = "repairexpert-ai"
+version = "1.0.0"
+description = "Экспертная система компонентного ремонта электроники с интеграцией LLM"
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "Proprietary" }
+authors = [{ name = "RepairExpert AI Team" }]
+
+# Совместимо с Python 3.11–3.13: нижние границы версий выбраны так,
+# чтобы для нативных пакетов существовали готовые wheel под Python 3.13.
+dependencies = [
+    "fastapi>=0.115,<0.116",
+    "uvicorn[standard]>=0.30,<0.35",
+    "pydantic>=2.9,<3",
+    "pydantic-settings>=2.5,<3",
+    "python-multipart>=0.0.9",
+    "SQLAlchemy>=2.0.36,<2.1",
+    "alembic>=1.13,<2",
+    "PyMySQL>=1.1.1,<2",
+    "cryptography>=43.0.1",
+    "bcrypt>=4.2.1,<5",
+    "PyJWT>=2.8,<3",
+    "httpx>=0.27,<0.29",
+    "openai>=1.35,<2",
+    "requests>=2.32.3,<3",
+    "qdrant-client>=1.12,<2",
+    # NumPy 2.x собран с baseline x86-64-v2 (не идёт на старых CPU/в VM без
+    # проброса флагов); на Python < 3.13 закрепляем совместимую ветку 1.26.
+    "numpy<2,>=1.26; python_version < '3.13'",
+    "pdfminer.six>=20231228",
+    "pytesseract>=0.3.10",
+    "Pillow>=11.0.0",
+    "Jinja2>=3.1.4,<4",
+    "WeasyPrint>=62.1",
+    "qrcode[pil]>=7.4.2,<8",
+    "PySide6>=6.8.0.2,<6.9",
+    "python-dotenv>=1.0.1,<2",
+    "tenacity>=8.4,<10",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.2,<9",
+    "pytest-asyncio>=0.23,<0.24",
+    "ruff>=0.5,<0.6",
+]
+
+[project.scripts]
+repairexpert-api = "backend.main:run"
+repairexpert-gui = "gui.app:main"
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+packages = ["backend", "gui"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"

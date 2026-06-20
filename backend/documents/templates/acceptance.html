@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Квитанция о приёмке № {{ ticket_number }}</h1>
+<div class="row"><span class="label">Дата приёмки:</span>{{ accepted_at }}</div>
+<div class="row"><span class="label">Клиент:</span>{{ client_name }}</div>
+<div class="row"><span class="label">Телефон:</span>{{ client_phone }}</div>
+
+<h3>Устройство</h3>
+<div class="row"><span class="label">Тип / производитель / модель:</span>
+  {{ device_type }} {{ device_manufacturer }} {{ device_model }}</div>
+<div class="row"><span class="label">Серийный номер:</span>{{ serial_number or '—' }}</div>
+<div class="row"><span class="label">Комплектация:</span>{{ accessories or '—' }}</div>
+
+<h3>Заявленная неисправность</h3>
+<p>{{ problem_description }}</p>
+
+<div class="row"><span class="label">Предварительная стоимость:</span>{{ cost_estimate or '—' }}</div>
+<div class="row"><span class="label">Срок готовности:</span>{{ deadline or '—' }}</div>
+
+<div class="signatures">
+  <div class="sign">Приёмщик: {{ receiver_name }}</div>
+  <div class="sign">Клиент: {{ client_name }}</div>
+</div>
+{% endblock %}
